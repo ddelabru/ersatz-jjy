@@ -13,7 +13,6 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 
-#define _POSIX_C_SOURCE 200809L
 #include <math.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -22,19 +21,23 @@
 #include <time.h>
 #include "portaudio.h"
 
+/* Macro constants */
 #define MAX_NANOSEC (1000000000L)
 #define SAMPLE_RATE (48000)
 #define FRAMES_PER_BUFFER (64)
 #define JJY_FREQ (20000)  /* One-third the actual JJY longwave frequency */
 #define WT_SIZE (12)  /* Should hold a whole number of cycles at sample rate */
 
+/* Calculated constants*/
 const double PI = acos(-1);
 const unsigned long JJY_B0_HIGH_SAMPLES = SAMPLE_RATE * 4 / 5;
 const unsigned long JJY_B1_HIGH_SAMPLES = SAMPLE_RATE / 2;
 const unsigned long JJY_M_HIGH_SAMPLES = SAMPLE_RATE / 5;
 
-float wt_high[WT_SIZE];
-float wt_low[WT_SIZE];
+/* Global variables */
+bool INTERRUPTED = false;
+float WT_HIGH[WT_SIZE];
+float WT_LOW[WT_SIZE];
 
 typedef struct
 {
@@ -46,8 +49,6 @@ typedef struct
     PaStream* stream;
 }
 jjy_data;
-
-bool INTERRUPTED = false;
 
 bool jjy_b01(const struct tm* t) {
     return (t->tm_min >= 40);
@@ -383,9 +384,9 @@ static int jjy_stream_callback(
 
     for (i = 0; i < framesPerBuffer; i++) {
         if (d->sample_index < d->high_samples) {
-            out[i] = wt_high[d->wt_index];
+            out[i] = WT_HIGH[d->wt_index];
         } else {
-            out[i] = wt_low[d->wt_index];
+            out[i] = WT_LOW[d->wt_index];
         }
         d->wt_index = (d->wt_index + 1) % WT_SIZE;
         d->sample_index += 1;
@@ -399,13 +400,13 @@ static int jjy_stream_callback(
     return INTERRUPTED ? paComplete : paContinue;
 }
 
-void jjy_populate_wavetables( float wt_high[WT_SIZE], float wt_low[WT_SIZE]) {
+void jjy_populate_wavetables( float WT_HIGH[WT_SIZE], float WT_LOW[WT_SIZE]) {
     const double cycles_per_sample = (double) JJY_FREQ / (double) SAMPLE_RATE;
     for (int i = 0; i < WT_SIZE; i++) {
-        wt_high[i] = sin((double) i * 2.0 * PI * cycles_per_sample);
+        WT_HIGH[i] = sin((double) i * 2.0 * PI * cycles_per_sample);
     }
     for (int i = 0; i < WT_SIZE; i++) {
-        wt_low[i] = 0.1 * sin((double) i * 2.0 * PI * cycles_per_sample);
+        WT_LOW[i] = 0.1 * sin((double) i * 2.0 * PI * cycles_per_sample);
     }
 }
 
@@ -416,9 +417,7 @@ int main(int argc, char* argv[])
     struct timespec now;
     jjy_data data;
 
-    tzset();
-    jjy_populate_wavetables(wt_high, wt_low);
-
+    jjy_populate_wavetables(WT_HIGH, WT_LOW);
     err = Pa_Initialize();
     if (err != paNoError) {
         return handle_pa_err(err);

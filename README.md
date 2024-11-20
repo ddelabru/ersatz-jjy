@@ -8,7 +8,7 @@ antenna of a JJY-compatible watch or clock, the analog audio signal leaks enough
 electromagnetic radiation at the third harmonic for the antenna to receive it as
 a 60kHz longwave radio signal.
 
-As currently implemented, ersatz-jjy is written in C using POSIX.1-2008 C
+As currently implemented, ersatz-jjy is written in C using C11 standard
 libraries and PortAudio for audio output.
 
 ## Usage notes
@@ -29,8 +29,6 @@ libraries and PortAudio for audio output.
 
 ## Planned improvements
 
-* Port to C++ and use C++20 standard libraries for portability to non-POSIX
-  systems; will also ease leap second implementation
 * Implement leap seconds
 * Implement --help and --version CLI flags
 * Implement CLI flag to force a JST time signal regardless of system timezone
