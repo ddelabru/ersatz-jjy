@@ -1,0 +1,3 @@
+/* the configured options and settings for ersatz-jjy */
+#define ERSATZ_JJY_VERSION_MAJOR @ersatz-jjy_VERSION_MAJOR@
+#define ERSATZ_JJY_VERSION_MINOR @ersatz-jjy_VERSION_MINOR@

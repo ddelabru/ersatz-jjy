@@ -2,6 +2,7 @@
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
     alsa-lib
+    cmake
     gcc
     glibc
     jack2
