@@ -11,7 +11,7 @@ a 60kHz longwave radio signal.
 As currently implemented, ersatz-jjy is written in C using C11 standard
 libraries and PortAudio for audio output.
 
-## Usage notes
+## Usage notes and limitations
 * This program outputs an audio signal. For best results, place a wired speaker
   or wired headphones playing this signal at high volume close to the antenna
   of the device that you want to synchronize.
@@ -26,6 +26,20 @@ libraries and PortAudio for audio output.
   printed to the terminal although they have been effectively handled by
   PortAudio. In this case, the program will continue as normal after the errors
   are printed.
+* Leap seconds are not implemented. The primary obstacle to implementing leap
+  seconds is that the basic C representation of system time is not aware of leap
+  seconds on many systems; on Unix-like systems in particular the time is stored
+  as a number of seconds since a pre-defined point in time (the "epoch"), _not_
+  counting leap seconds. C++ standard libraries have other formats for storing
+  time that are leap second-aware, but breaking out calendar information for a
+  stored time still relies on the C representation of system time. This may be
+  surmountable, but it may be not worth the effort because as of 2024 it appears
+  that there may never be another leap second. Since 2016 the earth's rotation
+  has been trending faster than atomic time and so _negative_ leap seconds would
+  be called for, but in practice negative leap seconds have never yet been
+  implemented and international timekeeping bodies have committed to phase out
+  leap seconds altogether by 2035 in favor of some other mechanism to manage the
+  drift between UTC and earth rotation.
 
 ## Planned improvements
 
