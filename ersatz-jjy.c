@@ -14,12 +14,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include <math.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include "portaudio.h"
+#include "ersatz-jjy-config.h"
 
 /* Macro constants */
 #define MAX_NANOSEC (1000000000L)
@@ -28,7 +28,7 @@
 #define JJY_FREQ (20000)  /* One-third the actual JJY longwave frequency */
 #define WT_SIZE (12)  /* Should hold a whole number of cycles at sample rate */
 
-/* Calculated constants*/
+/* Calculated constants */
 const double PI = acos(-1);
 const unsigned long JJY_B0_HIGH_SAMPLES = SAMPLE_RATE * 4 / 5;
 const unsigned long JJY_B1_HIGH_SAMPLES = SAMPLE_RATE / 2;
@@ -417,6 +417,11 @@ int main(int argc, char* argv[])
     struct timespec now;
     jjy_data data;
 
+    printf(
+        "ersatz-jjy v%d.%d\n",
+        ERSATZ_JJY_VERSION_MAJOR,
+        ERSATZ_JJY_VERSION_MINOR
+    );
     jjy_populate_wavetables(WT_HIGH, WT_LOW);
     err = Pa_Initialize();
     if (err != paNoError) {
