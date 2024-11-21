@@ -29,7 +29,6 @@
 #define WT_SIZE (12)  /* Should hold a whole number of cycles at sample rate */
 
 /* Calculated constants */
-const double PI = acos(-1);
 const unsigned long JJY_B0_HIGH_SAMPLES = SAMPLE_RATE * 4 / 5;
 const unsigned long JJY_B1_HIGH_SAMPLES = SAMPLE_RATE / 2;
 const unsigned long JJY_M_HIGH_SAMPLES = SAMPLE_RATE / 5;
@@ -401,6 +400,7 @@ static int jjy_stream_callback(
 }
 
 void jjy_populate_wavetables( float WT_HIGH[WT_SIZE], float WT_LOW[WT_SIZE]) {
+    const double PI = acos(-1);
     const double cycles_per_sample = (double) JJY_FREQ / (double) SAMPLE_RATE;
     for (int i = 0; i < WT_SIZE; i++) {
         WT_HIGH[i] = sin((double) i * 2.0 * PI * cycles_per_sample);
