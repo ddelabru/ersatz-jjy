@@ -7,6 +7,7 @@ pkgs.mkShell {
     gcc
     glibc
     jack2
+    pipewire
     pkg-config
     portaudio
   ];
