@@ -11,6 +11,19 @@ a 60kHz longwave radio signal.
 As currently implemented, ersatz-jjy is written in C using C11 standard
 libraries and PortAudio for audio output.
 
+## Compiling from source code
+
+The build dependencies are: a C compiler, C11 standard libraries, PortAudio with
+development headers, pkg-config, Make, and CMake. A typical build looks like: 
+
+```sh
+cmake .
+make
+```
+
+I've had success compiling with both gcc and clang on NixOS. In theory, the
+program should run on any platform that supports PortAudio.
+
 ## Usage notes and limitations
 * This program outputs an audio signal. For best results, place a wired speaker
   or wired headphones playing this signal at high volume close to the antenna
@@ -43,6 +56,5 @@ libraries and PortAudio for audio output.
 
 ## Planned improvements
 
-* Implement leap seconds
 * Implement --help and --version CLI flags
 * Implement CLI flag to force a JST time signal regardless of system timezone
