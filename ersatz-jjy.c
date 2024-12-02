@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 /* Macro constants */
@@ -27,6 +28,7 @@
 #define FRAMES_PER_BUFFER (64)
 #define JJY_FREQ (20000) /* One-third the actual JJY longwave frequency */
 #define WT_SIZE (12)
+#define NINE_HOURS (32400) /* JST offset from UTC in seconds */
 
 /* Calculated constants */
 const unsigned long JJY_B0_HIGH_SAMPLES = SAMPLE_RATE * 4 / 5;
@@ -50,11 +52,27 @@ float WT_LOW[WT_SIZE];
 
 typedef struct
 {
+  bool help;
+  bool jst;
+  bool version;
+} jjy_args;
+
+typedef struct
+{
+  char short_form;
+  char *long_form;
+  char *help_text;
+  void (*setter) (jjy_args *);
+} jjy_cli_flag;
+
+typedef struct
+{
   time_t seconds;
   struct tm *local;
   unsigned long sample_index;
   unsigned long wt_index;
   unsigned long high_samples;
+  bool jst;
 } jjy_data;
 
 /* Functions that calculate individual bits of the JJY time code */
@@ -452,6 +470,19 @@ handle_pa_err (PaError err)
   return err;
 }
 
+struct tm *
+get_tm (time_t *t, bool jst)
+{
+  time_t t_with_offset = *t;
+
+  if (jst)
+    {
+      t_with_offset += NINE_HOURS;
+      return gmtime (&t_with_offset);
+    }
+  return localtime (&t_with_offset);
+}
+
 static int
 jjy_stream_callback (const void *inputBuffer, void *outputBuffer,
                      unsigned long framesPerBuffer,
@@ -483,7 +514,7 @@ jjy_stream_callback (const void *inputBuffer, void *outputBuffer,
           */
           d->seconds += 1;
           d->sample_index = 0;
-          d->local = localtime (&d->seconds);
+          d->local = get_tm (&d->seconds, d->jst);
           d->high_samples = sec_high_samples (d->local);
         }
     }
@@ -495,24 +526,165 @@ jjy_populate_wavetables (float WT_HIGH[WT_SIZE], float WT_LOW[WT_SIZE])
 {
   const double PI = acos (-1);
   const double cycles_per_sample = (double)JJY_FREQ / (double)SAMPLE_RATE;
-  for (int i = 0; i < WT_SIZE; i++)
+  int i;
+
+  for (i = 0; i < WT_SIZE; i++)
     {
       WT_HIGH[i] = sin ((double)i * 2.0 * PI * cycles_per_sample);
     }
-  for (int i = 0; i < WT_SIZE; i++)
+  for (i = 0; i < WT_SIZE; i++)
     {
       WT_LOW[i] = 0.1 * sin ((double)i * 2.0 * PI * cycles_per_sample);
     }
 }
 
-int
-main (int argc, char *argv[])
+/* CLI flag setter functions */
+
+void
+help_flag_setter (jjy_args *argsp)
 {
+  argsp->help = true;
+}
+
+void
+jst_flag_setter (jjy_args *argsp)
+{
+  argsp->jst = true;
+}
+
+void
+version_flag_setter (jjy_args *argsp)
+{
+  argsp->version = true;
+}
+
+const jjy_cli_flag cli_flags[]
+    = { { 'h', "help", "show this help message and exit", help_flag_setter },
+        { 'j', "jst", "force JST timezone", jst_flag_setter },
+        { 'v', "version", "print version number and exit",
+          version_flag_setter } };
+const int flags_count = (sizeof cli_flags) / (sizeof *cli_flags);
+
+bool
+parse_jjy_args (jjy_args *argsp, int argc, const char *argv[])
+{
+  int i;
+  int j;
+  int k;
+  bool arg_parsed;
+  bool flag_char_parsed;
+  jjy_cli_flag *flag;
+
+  argsp->help = false;
+  argsp->jst = false;
+  argsp->version = false;
+  for (i = 1; i < argc; i++)
+    {
+      arg_parsed = false;
+      if (strncmp ("--", argv[i], 2) == 0)
+        {
+          for (j = 0; j < flags_count; j++)
+            {
+              if (strcmp (cli_flags[j].long_form, &argv[i][2]) == 0)
+                {
+                  arg_parsed = true;
+                  cli_flags[j].setter (argsp);
+                  break;
+                }
+            }
+        }
+      else if (argv[i][0] == '-')
+        {
+          arg_parsed = true;
+          for (j = 1; argv[i][j] != '\0'; j++)
+            {
+              flag_char_parsed = false;
+              for (k = 0; k < flags_count; k++)
+                {
+                  if (argv[i][j] == cli_flags[k].short_form)
+                    {
+                      flag_char_parsed = true;
+                      cli_flags[k].setter (argsp);
+                      break;
+                    }
+                }
+              if (!flag_char_parsed)
+                {
+                  fprintf (stderr, "Error: Unrecognized CLI flag -%c\n",
+                           argv[i][j]);
+                  return false;
+                }
+            }
+        }
+      if (!arg_parsed)
+        {
+          fprintf (stderr, "Error: Unrecognized CLI argument %s\n", argv[i]);
+          return false;
+        }
+    }
+  return true;
+}
+
+void
+print_help (const char *ename)
+{
+  const char *display_name
+      = (ename != NULL && ename[0] != '\0') ? ename : "ersatz_jjy";
+  int i;
+  int j;
+  int spaces;
+
+  printf ("usage: %s", display_name);
+  for (i = 0; i < flags_count; i++)
+    {
+      printf (" [-%c]", cli_flags[i].short_form);
+    }
+  printf ("\n\n");
+  printf ("Output audio simulating JJY radio time signal\n\n");
+  printf ("options:\n");
+  for (i = 0; i < flags_count; i++)
+    {
+      printf ("  -%c, --%s", cli_flags[i].short_form, cli_flags[i].long_form);
+      spaces = 9 - strlen (cli_flags[i].long_form);
+      for (j = 0; j < spaces; j++)
+        {
+          printf (" ");
+        }
+      printf ("%s\n", cli_flags[i].help_text);
+    }
+}
+
+void
+print_version (void)
+{
+  printf ("v%d.%d\n", ERSATZ_JJY_VERSION_MAJOR, ERSATZ_JJY_VERSION_MINOR);
+}
+
+int
+main (int argc, const char *argv[])
+{
+  jjy_args args;
   PaStream *stream;
   PaStreamParameters outputParameters;
   PaError err;
   struct timespec now;
   jjy_data data;
+
+  if (!parse_jjy_args (&args, argc, argv))
+    {
+      return 1;
+    }
+  if (args.help)
+    {
+      print_help (argv[0]);
+      return 0;
+    }
+  if (args.version)
+    {
+      print_version ();
+      return 0;
+    }
+  data.jst = args.jst;
 
   printf ("ersatz-jjy v%d.%d\n", ERSATZ_JJY_VERSION_MAJOR,
           ERSATZ_JJY_VERSION_MINOR);
@@ -540,7 +712,7 @@ main (int argc, char *argv[])
   data.seconds = now.tv_sec;
   data.sample_index = now.tv_nsec * SAMPLE_RATE / MAX_NANOSEC;
   data.wt_index = data.sample_index % WT_SIZE;
-  data.local = localtime (&now.tv_sec);
+  data.local = get_tm (&now.tv_sec, args.jst);
   data.high_samples = sec_high_samples (data.local);
   err = Pa_StartStream (stream);
   if (err != paNoError)

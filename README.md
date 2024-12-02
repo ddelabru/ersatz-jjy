@@ -34,6 +34,8 @@ program should run on any platform that supports PortAudio.
   program encodes the time in the system timezone. In a POSIX environment, you
   can change the effective system timezone for just this program using the `TZ`
   environment variable, for example with `TZ="JST-9" ersatz-jjy` to encode JST.
+  You can also use the `-j` or `--jst` command line flag to force the program to
+  encode JST regardless of the system timezone.
 * On some systems, depending on the version of PortAudio used, the initial probe
   to find the default audio output device may cause a lot of ALSA errors to be
   printed to the terminal although they have been effectively handled by
@@ -53,8 +55,3 @@ program should run on any platform that supports PortAudio.
   implemented and international timekeeping bodies have committed to phase out
   leap seconds altogether by 2035 in favor of some other mechanism to manage the
   drift between UTC and earth rotation.
-
-## Planned improvements
-
-* Implement --help and --version CLI flags
-* Implement CLI flag to force a JST time signal regardless of system timezone
