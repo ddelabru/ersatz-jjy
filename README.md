@@ -8,6 +8,13 @@ antenna of a JJY-compatible watch or clock, the analog audio signal leaks enough
 electromagnetic radiation at the third harmonic for the antenna to receive it as
 a 60kHz longwave radio signal.
 
+As a bonus, this repo also contains ersatz-wwvb, which simulates the 60kHz WWVB
+signal that broadcasts UTC time codes from Fort Collins, Colorado. This program
+is relatively more experimental than ersatz-jjy, especially the phase-modulation
+component of ersatz-wwvb. I'm not sure that the watch I've been using to test it
+actually uses the phase-modulated code, so I consider that element basically
+untested.
+
 As currently implemented, ersatz-jjy is written in C using C11 standard
 libraries and PortAudio for audio output.
 
@@ -36,6 +43,12 @@ program should run on any platform that supports PortAudio.
   environment variable, for example with `TZ="JST-9" ersatz-jjy` to encode JST.
   You can also use the `-j` or `--jst` command line flag to force the program to
   encode JST regardless of the system timezone.
+* Timezone offsets for ersatz-wwvb have not yet been implemented. Watches and
+  clocks that use WWVB are usually multi-timezone devices supporting at least
+  the US Pacific, Mountain, Central, and Eastern zones by applying the
+  appropriate offset to the UTC code. Applying an offset within ersatz-wwvb
+  would enable setting the local system time on such a device outside of those
+  zones.
 * On some systems, depending on the version of PortAudio used, the initial probe
   to find the default audio output device may cause a lot of ALSA errors to be
   printed to the terminal although they have been effectively handled by
