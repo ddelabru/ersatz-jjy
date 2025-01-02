@@ -26,14 +26,17 @@
 #define MAX_NANOSEC (1000000000L)
 #define SAMPLE_RATE (48000)
 #define FRAMES_PER_BUFFER (64)
-#define JJY_FREQ (20000) /* One-third the actual JJY longwave frequency */
-#define WT_SIZE (12)
+#define WT_CAP (18)
 #define NINE_HOURS (32400) /* JST offset from UTC in seconds */
 
 /* Calculated constants */
 const unsigned long JJY_B0_HIGH_SAMPLES = SAMPLE_RATE * 4 / 5;
 const unsigned long JJY_B1_HIGH_SAMPLES = SAMPLE_RATE / 2;
 const unsigned long JJY_M_HIGH_SAMPLES = SAMPLE_RATE / 5;
+
+/* Global variables determined from CLI flags */
+double JJY_FREQ; /* One-third the actual JJY longwave frequency */
+int WT_SIZE;
 
 /*  Wavetables holding sequential audio samples for high (full amplitude) and
     low (10% amplitude) signal states. These are populated by
@@ -47,11 +50,12 @@ const unsigned long JJY_M_HIGH_SAMPLES = SAMPLE_RATE / 5;
     repetitions of the wavetable encode a continuous sine-wave at a constant
     frequency.
 */
-float WT_HIGH[WT_SIZE];
-float WT_LOW[WT_SIZE];
+float WT_HIGH[WT_CAP];
+float WT_LOW[WT_CAP];
 
 typedef struct
 {
+  bool fukushima;
   bool help;
   bool jst;
   bool version;
@@ -522,8 +526,11 @@ jjy_stream_callback (const void *inputBuffer, void *outputBuffer,
 }
 
 void
-jjy_populate_wavetables (float WT_HIGH[WT_SIZE], float WT_LOW[WT_SIZE])
+jjy_populate_wavetables (float WT_HIGH[WT_CAP], float WT_LOW[WT_CAP],
+                         bool fukushima)
 {
+  JJY_FREQ = fukushima ? (40000.0 / 3.0) : 20000.0;
+  WT_SIZE = fukushima ? 18 : 12;
   const double PI = acos (-1);
   const double cycles_per_sample = (double)JJY_FREQ / (double)SAMPLE_RATE;
   int i;
@@ -539,6 +546,12 @@ jjy_populate_wavetables (float WT_HIGH[WT_SIZE], float WT_LOW[WT_SIZE])
 }
 
 /* CLI flag setter functions */
+
+void
+fukushima_flag_setter (jjy_args *argsp)
+{
+  argsp->fukushima = true;
+}
 
 void
 help_flag_setter (jjy_args *argsp)
@@ -559,7 +572,8 @@ version_flag_setter (jjy_args *argsp)
 }
 
 const jjy_cli_flag cli_flags[]
-    = { { 'h', "help", "show this help message and exit", help_flag_setter },
+    = { { 'f', "fukushima", "simulate 40kHz signal", fukushima_flag_setter },
+        { 'h', "help", "show this help message and exit", help_flag_setter },
         { 'j', "jst", "force JST timezone", jst_flag_setter },
         { 'v', "version", "print version number and exit",
           version_flag_setter } };
@@ -576,6 +590,7 @@ parse_jjy_args (jjy_args *argsp, int argc, const char *argv[])
   jjy_cli_flag *flag;
 
   argsp->help = false;
+  argsp->fukushima = false;
   argsp->jst = false;
   argsp->version = false;
   for (i = 1; i < argc; i++)
@@ -645,7 +660,7 @@ print_help (const char *ename)
   for (i = 0; i < flags_count; i++)
     {
       printf ("  -%c, --%s", cli_flags[i].short_form, cli_flags[i].long_form);
-      spaces = 9 - strlen (cli_flags[i].long_form);
+      spaces = 11 - strlen (cli_flags[i].long_form);
       for (j = 0; j < spaces; j++)
         {
           printf (" ");
@@ -688,7 +703,7 @@ main (int argc, const char *argv[])
 
   printf ("ersatz-jjy v%d.%d\n", ERSATZ_JJY_VERSION_MAJOR,
           ERSATZ_JJY_VERSION_MINOR);
-  jjy_populate_wavetables (WT_HIGH, WT_LOW);
+  jjy_populate_wavetables (WT_HIGH, WT_LOW, args.fukushima);
   err = Pa_Initialize ();
   if (err != paNoError)
     {
