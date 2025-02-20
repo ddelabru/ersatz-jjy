@@ -16,6 +16,7 @@
 #include "ersatz-jjy-config.h"
 #include "portaudio.h"
 #include <math.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,6 +39,9 @@ const unsigned long long HALF_HOUR_SEQ_BITS[]
     = { 0x34bd771e648ab67f, 0xb5037c1610e8c4e5 };
 const unsigned long long FIXED_TIMING_WORD[]
     = { 0x42a5cb431d9a6b8b, 0x0000009207fb6b47 };
+
+/* Global PulseAudio stream reference */
+PaStream *STREAM = NULL;
 
 /*  Wavetables holding sequential audio samples for high (full amplitude) and
     low (10% amplitude) signal states. These are populated by
@@ -951,11 +955,23 @@ print_version (void)
   printf ("v%d.%d\n", ERSATZ_JJY_VERSION_MAJOR, ERSATZ_JJY_VERSION_MINOR);
 }
 
+void
+handle_keyboard_interrupt (int sig)
+{
+  if (STREAM == NULL)
+    {
+      quick_exit (0);
+    }
+  else
+    {
+      Pa_AbortStream (STREAM);
+    }
+}
+
 int
 main (int argc, const char *argv[])
 {
   wwvb_args args;
-  PaStream *stream;
   PaStreamParameters outputParameters;
   PaError err;
   struct timespec now;
@@ -990,34 +1006,30 @@ main (int argc, const char *argv[])
   outputParameters.suggestedLatency
       = Pa_GetDeviceInfo (outputParameters.device)->defaultLowOutputLatency;
   outputParameters.hostApiSpecificStreamInfo = NULL;
-  err = Pa_OpenStream (&stream, NULL, /* No input */
+  err = Pa_OpenStream (&STREAM, NULL, /* No input */
                        &outputParameters, SAMPLE_RATE, FRAMES_PER_BUFFER,
                        paClipOff, wwvb_stream_callback, &data);
   if (err != paNoError)
     {
       return handle_pa_err (err);
     }
+  signal (SIGINT, handle_keyboard_interrupt);
 
   timespec_get (&now, TIME_UTC);
   data.seconds = now.tv_sec;
   data.sample_index = now.tv_nsec * SAMPLE_RATE / MAX_NANOSEC;
   data.wt_index = data.sample_index % WT_SIZE;
   data.low_samples = sec_low_samples (&data.seconds);
-  err = Pa_StartStream (stream);
+  err = Pa_StartStream (STREAM);
   if (err != paNoError)
     {
       return handle_pa_err (err);
     }
-  while (true)
+  while (Pa_IsStreamActive (STREAM))
     {
       Pa_Sleep (500);
     }
-  err = Pa_StopStream (stream);
-  if (err != paNoError)
-    {
-      return handle_pa_err (err);
-    }
-  err = Pa_CloseStream (stream);
+  err = Pa_CloseStream (STREAM);
   if (err != paNoError)
     {
       return handle_pa_err (err);
