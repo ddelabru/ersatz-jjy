@@ -684,7 +684,7 @@ handle_keyboard_interrupt (int sig)
 {
   if (STREAM == NULL)
     {
-      quick_exit (0);
+      exit (0);
     }
   else
     {
@@ -697,7 +697,7 @@ main (int argc, const char *argv[])
 {
   jjy_args args;
   PaStreamParameters outputParameters;
-  PaError err;
+  PaError err = paNoError;
   struct timespec now;
   jjy_data data;
 

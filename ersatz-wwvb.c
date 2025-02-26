@@ -960,7 +960,7 @@ handle_keyboard_interrupt (int sig)
 {
   if (STREAM == NULL)
     {
-      quick_exit (0);
+      exit (0);
     }
   else
     {
