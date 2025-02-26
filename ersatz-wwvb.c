@@ -1014,6 +1014,7 @@ main (int argc, const char *argv[])
       return handle_pa_err (err);
     }
   signal (SIGINT, handle_keyboard_interrupt);
+  signal (SIGTERM, handle_keyboard_interrupt);
 
   timespec_get (&now, TIME_UTC);
   data.seconds = now.tv_sec;
