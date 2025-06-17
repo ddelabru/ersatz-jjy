@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(ersatz-jjy VERSION 0.5)
+project(ersatz-jjy VERSION 0.6)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
 configure_file(ersatz-jjy-config.h.in ersatz-jjy-config.h)

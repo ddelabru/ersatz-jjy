@@ -25,9 +25,10 @@
 
 /* Macro constants */
 #define MAX_NANOSEC (1000000000L)
-#define SAMPLE_RATE (48000)
-#define FRAMES_PER_BUFFER (64)
-#define WT_CAP (18)
+#define SAMPLE_RATE (44100)
+#define SAMPLE_SCALE (32767) /* Maximum value of an audio sample */
+#define FRAMES_PER_BUFFER (512)
+#define WT_CAP (1323)
 #define NINE_HOURS (32400) /* JST offset from UTC in seconds */
 
 /* Calculated constants */
@@ -54,8 +55,8 @@ PaStream *STREAM = NULL;
     repetitions of the wavetable encode a continuous sine-wave at a constant
     frequency.
 */
-float WT_HIGH[WT_CAP];
-float WT_LOW[WT_CAP];
+int16_t WT_HIGH[WT_CAP];
+int16_t WT_LOW[WT_CAP];
 
 typedef struct
 {
@@ -497,7 +498,7 @@ jjy_stream_callback (const void *inputBuffer, void *outputBuffer,
                      const PaStreamCallbackTimeInfo *timeInfo,
                      PaStreamCallbackFlags statusFlags, void *userData)
 {
-  float *out = (float *)outputBuffer;
+  int16_t *out = (int16_t *)outputBuffer;
   unsigned long i;
   jjy_data *d = (jjy_data *)userData;
 
@@ -530,22 +531,24 @@ jjy_stream_callback (const void *inputBuffer, void *outputBuffer,
 }
 
 void
-jjy_populate_wavetables (float WT_HIGH[WT_CAP], float WT_LOW[WT_CAP],
+jjy_populate_wavetables (int16_t WT_HIGH[WT_CAP], int16_t WT_LOW[WT_CAP],
                          bool fukushima)
 {
   JJY_FREQ = fukushima ? (40000.0 / 3.0) : 20000.0;
-  WT_SIZE = fukushima ? 18 : 12;
+  WT_SIZE = fukushima ? 1323 : 441;
   const double PI = acos (-1);
   const double cycles_per_sample = (double)JJY_FREQ / (double)SAMPLE_RATE;
   int i;
 
   for (i = 0; i < WT_SIZE; i++)
     {
-      WT_HIGH[i] = sin ((double)i * 2.0 * PI * cycles_per_sample);
+      WT_HIGH[i]
+          = SAMPLE_SCALE * sin ((double)i * 2.0 * PI * cycles_per_sample);
     }
   for (i = 0; i < WT_SIZE; i++)
     {
-      WT_LOW[i] = 0.1 * sin ((double)i * 2.0 * PI * cycles_per_sample);
+      WT_LOW[i] = SAMPLE_SCALE * 0.1
+                  * sin ((double)i * 2.0 * PI * cycles_per_sample);
     }
 }
 
@@ -727,7 +730,7 @@ main (int argc, const char *argv[])
     }
   outputParameters.device = Pa_GetDefaultOutputDevice ();
   outputParameters.channelCount = 1;
-  outputParameters.sampleFormat = paFloat32;
+  outputParameters.sampleFormat = paInt16;
   outputParameters.suggestedLatency
       = Pa_GetDeviceInfo (outputParameters.device)->defaultLowOutputLatency;
   outputParameters.hostApiSpecificStreamInfo = NULL;
