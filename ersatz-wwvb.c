@@ -26,7 +26,8 @@
 /* Macro constants */
 #define MAX_NANOSEC (1000000000L)
 #define SAMPLE_RATE (48000)
-#define FRAMES_PER_BUFFER (64)
+#define SAMPLE_SCALE (32767) /* Maximum value of an audio sample */
+#define FRAMES_PER_BUFFER (512)
 #define WWVB_FREQ (20000) /* One-third the actual WWVB longwave frequency */
 #define WT_SIZE (12)
 #define PS_INDEX (6) /* wavetable index phase-shifted 180 degrees */
@@ -55,8 +56,8 @@ PaStream *STREAM = NULL;
     repetitions of the wavetable encode a continuous sine-wave at a constant
     frequency.
 */
-float WT_HIGH[WT_SIZE];
-float WT_LOW[WT_SIZE];
+int16_t WT_HIGH[WT_SIZE];
+int16_t WT_LOW[WT_SIZE];
 
 typedef struct
 {
@@ -789,7 +790,7 @@ wwvb_stream_callback (const void *inputBuffer, void *outputBuffer,
                       const PaStreamCallbackTimeInfo *timeInfo,
                       PaStreamCallbackFlags statusFlags, void *userData)
 {
-  float *out = (float *)outputBuffer;
+  int16_t *out = (int16_t *)outputBuffer;
   unsigned long i;
   wwvb_data *d = (wwvb_data *)userData;
 
@@ -825,7 +826,7 @@ wwvb_stream_callback (const void *inputBuffer, void *outputBuffer,
 }
 
 void
-wwvb_populate_wavetables (float WT_HIGH[WT_SIZE], float WT_LOW[WT_SIZE])
+wwvb_populate_wavetables (int16_t WT_HIGH[WT_SIZE], int16_t WT_LOW[WT_SIZE])
 {
   const double PI = acos (-1);
   const double cycles_per_sample = (double)WWVB_FREQ / (double)SAMPLE_RATE;
@@ -833,11 +834,13 @@ wwvb_populate_wavetables (float WT_HIGH[WT_SIZE], float WT_LOW[WT_SIZE])
 
   for (i = 0; i < WT_SIZE; i++)
     {
-      WT_HIGH[i] = sin ((double)i * 2.0 * PI * cycles_per_sample);
+      WT_HIGH[i]
+          = SAMPLE_SCALE * sin ((double)i * 2.0 * PI * cycles_per_sample);
     }
   for (i = 0; i < WT_SIZE; i++)
     {
-      WT_LOW[i] = 0.02 * sin ((double)i * 2.0 * PI * cycles_per_sample);
+      WT_LOW[i] = SAMPLE_SCALE * 0.02
+                  * sin ((double)i * 2.0 * PI * cycles_per_sample);
     }
 }
 
@@ -1002,7 +1005,7 @@ main (int argc, const char *argv[])
     }
   outputParameters.device = Pa_GetDefaultOutputDevice ();
   outputParameters.channelCount = 1;
-  outputParameters.sampleFormat = paFloat32;
+  outputParameters.sampleFormat = paInt16;
   outputParameters.suggestedLatency
       = Pa_GetDeviceInfo (outputParameters.device)->defaultLowOutputLatency;
   outputParameters.hostApiSpecificStreamInfo = NULL;
